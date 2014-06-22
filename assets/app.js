@@ -50,6 +50,16 @@ $(function () {
 			]
 	  });
 
+	  $('.js-marker-click').smallworld({
+	    geojson: data,
+	    center: [0, 150],
+	    marker: [40.7028, -73.957031],
+	    markerSize: 8,
+  	    markerColor: "#ffc81f",
+	    markerCallback: { selector: ".js-marker-click" }
+	  });
+
+
   });
 
 });
