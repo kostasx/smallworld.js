@@ -88,6 +88,8 @@
 
   Smallworld.defaults = {};
 
+  Smallworld.markersList = [];
+
   Smallworld.prototype = {
 
     initialize: function () {
@@ -133,6 +135,7 @@
     draw: function () {
 
       var centerX, centerY, tilesBefore, tilesAfter, tileCount;
+      var tileCoords = [];
 
       // Draw the water first
       this.context.fillStyle = this.options.waterColor;
@@ -150,27 +153,84 @@
       // Draw tiles to the left of the center tile
       for (tileCount = 1; tileCount <= tilesBefore; tileCount++) {
         this.context.drawImage(this.tile.el, centerX - (this.tile.width * tileCount), centerY);
+        tileCoords.push([centerX - (this.tile.width * tileCount), centerY]);
       }
 
       // Draw tiles to the right of the center tile
       for (tileCount = 1; tileCount <= tilesAfter; tileCount++) {
         this.context.drawImage(this.tile.el, centerX + (this.tile.width * tileCount), centerY);
+        tileCoords.push([centerX + (this.tile.width * tileCount), centerY]);
       }
 
       // Draw the center tile
       this.context.drawImage(this.tile.el, centerX, centerY);
+      tileCoords.push([centerX, centerY]);
 
       // Add markers, if necessary
       if (this.options.marker) {
         if (this.options.marker === true) {
-          this.tile.addMarker(this.options.center);
+          this.tile.addMarker(this.options.center, {}, tileCoords);
         } else {
-          this.tile.addMarker(this.options.marker);
+          this.tile.addMarker(this.options.marker, {}, tileCoords);
         }
       } else if (this.options.markers) {
         for (var i = 0; i < this.options.markers.length; i++) {
-          this.tile.addMarker(this.options.markers[i]);
+          this.tile.addMarker(this.options.markers[i], {}, tileCoords);
         }
+      }
+
+      var addClickHandlers = function( markers ){
+
+         document.querySelector( this.options.markerCallback.selector ).addEventListener( "click", function(e){
+
+            var i = 0;
+            for ( ; i < markers.length; i++ ){
+              if ( e.offsetX > markers[i][0] - markers[i][2] 
+                && e.offsetX < markers[i][0] + markers[i][2]
+                && e.offsetY > markers[i][1] - markers[i][2]
+                && e.offsetY < markers[i][1] + markers[i][2]
+              ) {
+                (function(markers){
+                  $.getJSON(
+                    "http://maps.googleapis.com/maps/api/geocode/json?latlng=" + markers[3][0] + "," + markers[3][1] + "&sensor=true",
+                    function(data){
+                      var address = 
+                        "Lat: " + markers[3][0] +  
+                        " Long: " + markers[3][1] + 
+                        " Address: " + data.results[0].formatted_address;
+                        
+                      
+                      $("#address").show().empty().append(address);
+                    }
+                  );
+
+                }(markers[i]));
+
+              };
+
+            }
+
+        }.bind(this));
+
+      }.bind(this);
+
+      var markerCoords = [];
+
+      if ( this.options.markerCallback ) {
+
+        tileCoords.forEach(function( entry, index ){
+          markerCoords.push(
+            [
+              this.tile.coordinateToPoint( this.options.marker[0], this.options.marker[1] ).x + entry[0],
+              this.tile.coordinateToPoint( this.options.marker[0], this.options.marker[1] ).y + entry[1],
+              this.options.markerSize,
+              [ this.options.marker[0], this.options.marker[1] ]
+            ]
+          );
+        }.bind(this));
+
+        addClickHandlers( markerCoords );
+
       }
 
     }
@@ -284,12 +344,12 @@
       return point;
     },
 
-    addMarker: function (point, options) {
+    addMarker: function (point, options, tileCoords) {
   
       options = options || {};
 
       var center = this.coordinateToPoint(point[0], point[1]);
-        
+
       this.context.beginPath();
       this.context.arc(center.x, center.y, this.options.markerSize, 0, 2 * Math.PI, false);
       this.context.fillStyle = this.options.markerColor;
